@@ -5,6 +5,10 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
 from openai import OpenAI
 from dotenv import load_dotenv
+import pandas as pd
+import numpy as np
+from questions import answer_question
+
 
 # Load environment variables from .env file
 load_dotenv()  
@@ -27,6 +31,9 @@ logging.basicConfig(
   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
   level=logging.INFO)
 
+df = pd.read_csv('processed/embeddings.csv', index_col=0)
+df['embeddings'] = df['embeddings'].apply(eval).apply(np.array)
+
 # Handler for the /start command
 # This is called when a user starts interaction with the bot
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -38,7 +45,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
   # Add user's message to conversation history
   messages.append({"role": "user", "content": update.message.text})
-  
+
   # Send message to OpenAI API and get response
   completion = client.chat.completions.create(model="gpt-4o-mini",
                                               messages=messages)
@@ -50,6 +57,12 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
   # Send AI's response back to the user
   await context.bot.send_message(chat_id=update.effective_chat.id,
                                  text=completion_answer.content)
+  
+async def mozilla(update: Update, context:ContextTypes.DEFAULT_TYPE):
+  
+ answer = answer_question(df, question=update.message.text,debug=True)
+ 
+ await context.bot.send_message(chat_id=update.effective_chat.id,text=answer)
 
 
 if __name__ == '__main__':
@@ -59,10 +72,11 @@ if __name__ == '__main__':
   # Create command handlers for /start and /chat commands
   start_handler = CommandHandler('start', start)
   chat_handler = CommandHandler('chat', chat)
+  mozilla_handler = CommandHandler('mozilla', mozilla)
 
   # Register the handlers with the application
   application.add_handler(start_handler)
   application.add_handler(chat_handler)
-
+  application.add_handler(mozilla_handler)
   # Start the bot and begin polling for updates
   application.run_polling()

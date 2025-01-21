@@ -11,3 +11,5 @@ wheels/
 
 # Telegram bot
 .env
+
+.DS_Store
